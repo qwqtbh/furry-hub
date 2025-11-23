@@ -1,0 +1,789 @@
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "WHYME_GUI"
+ScreenGui.Parent = game.CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 500, 0, 500)
+MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- Градиент
+local Gradient = Instance.new("UIGradient")
+Gradient.Rotation = 45
+Gradient.Color = ColorSequence.new({
+ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 80)),
+ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 0, 255))
+})
+Gradient.Parent = MainFrame
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 12)
+Corner.Parent = MainFrame
+
+-- Заголовок
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(255, 212, 212)
+TitleBar.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "93 skidded gui :/"
+Title.TextColor3 = Color3.fromRGB(255, 123, 123)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = TitleBar
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -30, 0.5, -12.5)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 14
+CloseButton.Parent = TitleBar
+
+-- Вкладки
+local TabsContainer = Instance.new("Frame")
+TabsContainer.Size = UDim2.new(1, -20, 0, 40)
+TabsContainer.Position = UDim2.new(0, 10, 0, 45)
+TabsContainer.BackgroundTransparency = 1
+TabsContainer.Parent = MainFrame
+
+-- Контейнер для контента
+local ContentFrame = Instance.new("ScrollingFrame")
+ContentFrame.Size = UDim2.new(1, -20, 1, -100)
+ContentFrame.Position = UDim2.new(0, 10, 0, 90)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.ScrollBarThickness = 5
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ContentFrame.Parent = MainFrame
+
+-- Создаем вкладки
+local Tabs = {
+"Combat",
+"Aura",
+"Tools",
+"Teleports",
+"Others",
+"Modding"
+}
+
+local TabButtons = {}
+local CurrentTab = "Combat"
+
+-- Функции из Red GUI
+local Places = {
+["outside"] = CFrame.new(237, 3, -106),
+["prison"] = CFrame.new(77, 3, -104),
+["basement"] = CFrame.new(468, -6, -89),
+["burger"] = CFrame.new(235, 3, -598),
+["axe"] = CFrame.new(206.64, 3.16, -614.91),
+["pipe"] = CFrame.new(261.77, -27.33, -440.92),
+["metro"] = CFrame.new(401.07, -25.74, -306.83)
+}
+
+local WeaponsName = {
+"Axe", "Pickaxe", "Fist", "Bat", "Knife", "Hammer",
+"Bag", "Pliers", "Handsaw", "Screwdriver", "Crowbar", "PoliceBaton"
+}
+
+-- Вспомогательные функции
+function Teleport(CFrame)
+if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame
+end
+end
+
+function FireClick(Part)
+if Part and Part:FindFirstChildOfClass("ClickDetector") then
+fireclickdetector(Part:FindFirstChildOfClass("ClickDetector"))
+end
+end
+
+function Dupe(ToolName, ClickPart)
+for _, tool in next, LocalPlayer.Backpack:GetChildren() do
+if tool.Name == ToolName then
+Equip(tool)
+end
+end
+FireClick(ClickPart)
+end
+
+function Equip(Name)
+if typeof(Name) == "string" then
+if LocalPlayer.Backpack:FindFirstChild(Name) then
+LocalPlayer.Backpack:FindFirstChild(Name).Parent = LocalPlayer.Character
+end
+elseif Name:IsA("Tool") then
+Name.Parent = LocalPlayer.Character
+end
+end
+
+function GetPlayersTeam()
+local TeamCheckedPlayers = {}
+for _, plr in pairs(game.Players:GetPlayers()) do
+if plr ~= LocalPlayer and plr.Team ~= LocalPlayer.Team then
+table.insert(TeamCheckedPlayers, plr)
+end
+end
+return TeamCheckedPlayers
+end
+
+function GetUnBlockingPlayers(Check, Pos)
+local player = LocalPlayer
+local players = Check and GetPlayersTeam() or game.Players:GetPlayers()
+local LocalCharacter = LocalPlayer.Character
+local Players = {}
+
+for _, plr in pairs(players) do
+if plr ~= player and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") and plr.Character:FindFirstChildOfClass("Humanoid").Health ~= 0 then
+local Ray = Ray.new(Pos, (plr.Character.PrimaryPart.Position - Pos))
+local part = workspace:FindPartOnRayWithIgnoreList(Ray, {LocalCharacter})
+if part and part:IsDescendantOf(plr.Character) then
+table.insert(Players, plr)
+end
+end
+end
+return Players
+end
+
+function getPlayer(String, Information)
+local Info = {
+["Raycasting"] = false,
+["Team"] = false,
+["Position"] = LocalPlayer.Character.PrimaryPart.Position,
+["Distance"] = math.huge
+}
+
+if Information then
+for name, value in pairs(Information) do
+if Info[name] ~= nil then
+Info[name] = value
+end
+end
+end
+
+local players
+if Info["Raycasting"] and Info["Team"] then
+players = GetUnBlockingPlayers(true, Info["Position"])
+elseif Info["Raycasting"] then
+players = GetUnBlockingPlayers(false, Info["Position"])
+elseif Info["Team"] then
+players = GetPlayersTeam()
+else
+players = game.Players:GetPlayers()
+end
+
+local Found = {}
+local strl = string.lower(String)
+
+if strl == "all" then
+for _, v in pairs(players) do
+pcall(function()
+if (LocalPlayer.Character.PrimaryPart.Position - v.Character.PrimaryPart.Position).magnitude <= Info["Distance"] then
+table.insert(Found, v)
+end
+end)
+end
+elseif strl == "others" then
+for _, v in pairs(players) do
+if v ~= LocalPlayer and (LocalPlayer.Character.PrimaryPart.Position - v.Character.PrimaryPart.Position).magnitude <= Info["Distance"] then
+table.insert(Found, v)
+end
+end
+elseif strl == "nearest" then
+local closestPlayer, closestDistance
+for _, p in pairs(players) do
+if p ~= LocalPlayer and p.Character and p.Character:FindFirstChildOfClass("Humanoid") and p.Character:FindFirstChildOfClass("Humanoid").Health ~= 0 then
+local distance = (LocalPlayer.Character.PrimaryPart.Position - p.Character.PrimaryPart.Position).Magnitude
+if not closestDistance or distance < closestDistance then
+closestDistance = distance
+closestPlayer = p
+end
+end
+end
+if closestPlayer then table.insert(Found, closestPlayer) end
+end
+
+return Found
+end
+
+-- Создание элементов UI
+local function CreateToggle(text, description, callback, yPosition)
+local toggleFrame = Instance.new("Frame")
+toggleFrame.Size = UDim2.new(1, 0, 0, 60)
+toggleFrame.Position = UDim2.new(0, 0, 0, yPosition)
+toggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+toggleFrame.Parent = ContentFrame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 40, 0, 20)
+toggleButton.Position = UDim2.new(1, -50, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+toggleButton.Text = ""
+toggleButton.Parent = toggleFrame
+
+local toggleSlider = Instance.new("Frame")
+toggleSlider.Size = UDim2.new(0, 18, 0, 18)
+toggleSlider.Position = UDim2.new(0, 2, 0, 1)
+toggleSlider.BackgroundColor3 = Color3.fromRGB(255, 0, 80)
+toggleSlider.Parent = toggleButton
+
+local toggleLabel = Instance.new("TextLabel")
+toggleLabel.Size = UDim2.new(1, -60, 0, 30)
+toggleLabel.Position = UDim2.new(0, 10, 0, 5)
+toggleLabel.BackgroundTransparency = 1
+toggleLabel.Text = text
+toggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleLabel.Font = Enum.Font.GothamBold
+toggleLabel.TextSize = 14
+toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+toggleLabel.Parent = toggleFrame
+
+local descLabel = Instance.new("TextLabel")
+descLabel.Size = UDim2.new(1, -60, 0, 20)
+descLabel.Position = UDim2.new(0, 10, 0, 35)
+descLabel.BackgroundTransparency = 1
+descLabel.Text = description
+descLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+descLabel.Font = Enum.Font.Gotham
+descLabel.TextSize = 11
+descLabel.TextXAlignment = Enum.TextXAlignment.Left
+descLabel.Parent = toggleFrame
+
+local isEnabled = false
+
+local function UpdateToggle()
+if isEnabled then
+toggleSlider.Position = UDim2.new(0, 20, 0, 1)
+toggleSlider.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
+else
+toggleSlider.Position = UDim2.new(0, 2, 0, 1)
+toggleSlider.BackgroundColor3 = Color3.fromRGB(255, 0, 80)
+toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+end
+end
+
+toggleButton.MouseButton1Click:Connect(function()
+isEnabled = not isEnabled
+UpdateToggle()
+callback(isEnabled)
+end)
+
+UpdateToggle()
+return toggleFrame
+end
+
+local function CreateButton(text, description, callback, yPosition)
+local buttonFrame = Instance.new("Frame")
+buttonFrame.Size = UDim2.new(1, 0, 0, 50)
+buttonFrame.Position = UDim2.new(0, 0, 0, yPosition)
+buttonFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+buttonFrame.Parent = ContentFrame
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0.9, 0, 0, 30)
+button.Position = UDim2.new(0.05, 0, 0.1, 0)
+button.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+button.Text = text
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 12
+button.Parent = buttonFrame
+
+local descLabel = Instance.new("TextLabel")
+descLabel.Size = UDim2.new(1, -20, 0, 15)
+descLabel.Position = UDim2.new(0, 10, 0, 35)
+descLabel.BackgroundTransparency = 1
+descLabel.Text = description
+descLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+descLabel.Font = Enum.Font.Gotham
+descLabel.TextSize = 10
+descLabel.TextXAlignment = Enum.TextXAlignment.Left
+descLabel.Parent = buttonFrame
+
+button.MouseButton1Click:Connect(callback)
+return buttonFrame
+end
+
+local function CreateTextBox(defaultText, placeholder, yPosition)
+local textFrame = Instance.new("Frame")
+textFrame.Size = UDim2.new(1, 0, 0, 50)
+textFrame.Position = UDim2.new(0, 0, 0, yPosition)
+textFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+textFrame.Parent = ContentFrame
+
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(0.9, 0, 0, 25)
+textBox.Position = UDim2.new(0.05, 0, 0.25, 0)
+textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+textBox.Text = defaultText
+textBox.PlaceholderText = placeholder
+textBox.Font = Enum.Font.Gotham
+textBox.TextSize = 12
+textBox.Parent = textFrame
+
+return textBox
+end
+
+-- Создаем вкладки
+for i, tabName in ipairs(Tabs) do
+local tabButton = Instance.new("TextButton")
+tabButton.Size = UDim2.new(0, 80, 1, 0)
+tabButton.Position = UDim2.new(0, (i-1)*85, 0, 0)
+tabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+tabButton.Text = tabName
+tabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+tabButton.Font = Enum.Font.GothamBold
+tabButton.TextSize = 12
+tabButton.Parent = TabsContainer
+
+TabButtons[tabName] = tabButton
+
+tabButton.MouseButton1Click:Connect(function()
+CurrentTab = tabName
+UpdateContent()
+for name, btn in pairs(TabButtons) do
+if name == tabName then
+btn.BackgroundColor3 = Color3.fromRGB(255, 0, 80)
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+else
+btn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+end
+end
+end)
+end
+
+-- Переменные для функций
+local KillAuraDistance = "30"
+local TaseAuraDistance = "10"
+local SpeedValue = 50
+
+-- Функция обновления контента
+function UpdateContent()
+-- Очищаем контент
+for _, child in ipairs(ContentFrame:GetChildren()) do
+if child:IsA("Frame") then
+child:Destroy()
+end
+end
+
+local yPosition = 0
+
+if CurrentTab == "Combat" then
+CreateToggle("Silent Aim", "Автонаведение при ПКМ на ближайшего врага", function(state)
+-- Silent Aim логика
+end, yPosition)
+yPosition = yPosition + 65
+
+CreateToggle("Attack", "Автоматическая атака оружием", function(state)
+while state and wait(0.1) do
+for _, weapon in pairs(LocalPlayer.Backpack:GetChildren()) do
+if table.find(WeaponsName, weapon.Name) then
+Equip(weapon)
+end
+end
+for _, weapon in pairs(LocalPlayer.Character:GetChildren()) do
+if weapon:IsA("Tool") then
+weapon:Activate()
+end
+end
+end
+end, yPosition)
+yPosition = yPosition + 65
+
+CreateToggle("Heal", "Автоматическое лечение", function(state)
+while state and wait(0.5) do
+if LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health <= 90 then
+if LocalPlayer.Character:FindFirstChild("Hamburger") and not LocalPlayer.Backpack:FindFirstChild("Hamburger") then
+game:GetService("ReplicatedStorage"):FindFirstChild("EatingEvent"):FireServer(LocalPlayer.Character, LocalPlayer.Character:FindFirstChild("Hamburger"), "Heal")
+LocalPlayer.Character:FindFirstChild("Hamburger").Parent = LocalPlayer.Backpack
+elseif not LocalPlayer.Character:FindFirstChild("Hamburger") and LocalPlayer.Backpack:FindFirstChild("Hamburger") then
+Equip("Hamburger")
+elseif not LocalPlayer.Character:FindFirstChild("Hamburger") and not LocalPlayer.Backpack:FindFirstChild("Hamburger") then
+FireClick(workspace.Hamburger)
+end
+end
+end
+end, yPosition)
+yPosition = yPosition + 65
+
+CreateToggle("Instant Undo", "Мгновенное снятие ограничений", function(state)
+while state and wait(0.5) do
+game:GetService("ReplicatedStorage"):WaitForChild("IsHog"):FireServer(LocalPlayer.Character, "UnHog")
+game:GetService("ReplicatedStorage"):WaitForChild("UnCuffed"):FireServer(LocalPlayer.Character)
+game:GetService("ReplicatedStorage"):WaitForChild("CollarRemove"):FireServer(LocalPlayer.Character, "Collar")
+for i,con in next, getconnections(LocalPlayer.PlayerGui.Avatar.Undo.MouseButton1Click) do
+spawn(con.Function)
+end
+end
+end, yPosition)
+yPosition = yPosition + 65
+
+-- Speed Control
+local speedFrame = Instance.new("Frame")
+speedFrame.Size = UDim2.new(1, 0, 0, 50)
+speedFrame.Position = UDim2.new(0, 0, 0, yPosition)
+speedFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+speedFrame.Parent = ContentFrame
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0.5, 0, 1, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: " .. SpeedValue
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 12
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = speedFrame
+
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0.4, 0, 0, 25)
+speedBox.Position = UDim2.new(0.55, 0, 0.25, 0)
+speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.Text = tostring(SpeedValue)
+speedBox.PlaceholderText = "16-100"
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 12
+speedBox.Parent = speedFrame
+
+speedBox.FocusLost:Connect(function()
+local newSpeed = tonumber(speedBox.Text)
+if newSpeed and newSpeed >= 16 and newSpeed <= 100 then
+SpeedValue = newSpeed
+speedLabel.Text = "Speed: " .. SpeedValue
+if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+LocalPlayer.Character.Humanoid.WalkSpeed = SpeedValue
+end
+else
+speedBox.Text = tostring(SpeedValue)
+end
+end)
+
+elseif CurrentTab == "Aura" then
+local killAuraBox = CreateTextBox("30", "Kill Aura Distance", yPosition)
+yPosition = yPosition + 55
+
+CreateToggle("Kill Aura", "Автоматическая атака ближайших врагов", function(state)
+while state and wait(0.1) do
+local MaxDistance = tonumber(KillAuraDistance) or 30
+for _, Target in next, getPlayer("nearest", {["Team"] = true, ["Distance"] = MaxDistance}) do
+for _, weapon in pairs(LocalPlayer.Character:GetChildren()) do
+if weapon:IsA("Tool") then
+game:GetService("ReplicatedStorage").Combat:FireServer(LocalPlayer.Character, Target.Character.Head, weapon)
+end
+end
+end
+end
+end, yPosition)
+yPosition = yPosition + 65
+
+local taseAuraBox = CreateTextBox("10", "Tase Aura Distance", yPosition)
+yPosition = yPosition + 55
+
+CreateToggle("Tase Aura", "Автоматическое использование тазера", function(state)
+while state and wait(0.1) do
+local MaxDistance = tonumber(TaseAuraDistance) or 10
+for _, Target in next, getPlayer("others", {["Team"] = true, ["Distance"] = MaxDistance}) do
+game:GetService("ReplicatedStorage"):WaitForChild("Tase"):FireServer("Hit", LocalPlayer.Backpack:FindFirstChild("Taser"), Target.Character.Torso)
+game:GetService("ReplicatedStorage"):WaitForChild("Tase"):FireServer("Recharge", LocalPlayer.Backpack:FindFirstChild("Taser"))
+end
+end
+end, yPosition)
+yPosition = yPosition + 65
+
+CreateToggle("Cuffs Aura", "Автоматическое надевание наручников", function(state)
+while state and wait(0.1) do
+for _, Target in next, getPlayer("others", {["Team"] = true}) do
+spawn(function()
+for _, cuffs in pairs(LocalPlayer.Backpack:GetChildren()) do
+if cuffs.Name:find("Handcuffs") then
+game:GetService("ReplicatedStorage"):FindFirstChild("IsCuffed"):FireServer(cuffs, Target.Character)
+end
+end
+end)
+end
+end
+end, yPosition)
+yPosition = yPosition + 65
+
+CreateToggle("Rope Aura", "Автоматическое связывание веревкой", function(state)
+while state and wait(0.1) do
+for _, Target in next, getPlayer("others", {["Team"] = true}) do
+spawn(function()
+game:GetService("ReplicatedStorage"):FindFirstChild("IsHog"):FireServer(Target.Character, "Hog")
+end)
+end
+end
+end, yPosition)
+yPosition = yPosition + 65
+
+CreateToggle("Grab Aura", "Автоматический захват игроков", function(state)
+while state and wait(0.1) do
+for _, Target in next, getPlayer("others", {["Team"] = true}) do
+spawn(function()
+game:GetService("ReplicatedStorage"):FindFirstChild("Grab"):FireServer(Target.Character, "Grab")
+end)
+end
+end
+end, yPosition)
+
+elseif CurrentTab == "Tools" then
+CreateButton("Get Hamburger", "Получить гамбургер", function()
+Dupe("Hamburger", workspace.Hamburger)
+end, yPosition)
+yPosition = yPosition + 55
+
+CreateButton("Get Weapons", "Собрать все оружие на карте", function()
+for i,v in pairs(workspace:GetDescendants()) do
+if v:IsA("Tool") and v:FindFirstChildOfClass("ClickDetector") then
+FireClick(v)
+end
+end
+for i,v in pairs(workspace:GetDescendants()) do
+if v.Name == "Broom" or v.Name == "Collar" or v.Name == "Bat" or v.Name == "Food" or v.Name == "BlindFold" then
+for i, click in pairs(v:GetDescendants()) do
+if click:IsA("ClickDetector") then
+fireclickdetector(click)
+end
+end
+end
+end
+end, yPosition)
+
+elseif CurrentTab == "Teleports" then
+for name, cframe in pairs(Places) do
+CreateButton(name, "teleport to " .. name, function()
+Teleport(cframe)
+end, yPosition)
+yPosition = yPosition + 55
+end
+
+elseif CurrentTab == "Others" then
+CreateButton("Close Choosing UI", "Закрыть/открыть интерфейс выбора", function()
+if LocalPlayer.PlayerGui.Menu.TeamMenu.Visible == true then
+LocalPlayer.PlayerGui.Menu.TeamMenu.Visible = false
+LocalPlayer.PlayerGui.Menu.OpenAndClose.Visible = true
+LocalPlayer.PlayerGui.Stamina.StaminaBarFrame.Visible = true
+LocalPlayer.PlayerGui.Schedule.CurrentSchedule.Visible = true
+LocalPlayer.PlayerGui.VoteKickPanel.OpenCloseButton.Visible = true
+LocalPlayer.PlayerGui.Animation.Enabled = true
+LocalPlayer.PlayerGui.Hostile.Hostile.Visible = true
+LocalPlayer.PlayerGui.Hostile.Status.Visible = true
+else
+LocalPlayer.PlayerGui.Menu.TeamMenu.Visible = true
+LocalPlayer.PlayerGui.Menu.OpenAndClose.Visible = false
+LocalPlayer.PlayerGui.Stamina.StaminaBarFrame.Visible = false
+LocalPlayer.PlayerGui.Schedule.CurrentSchedule.Visible = false
+LocalPlayer.PlayerGui.VoteKickPanel.OpenCloseButton.Visible = false
+LocalPlayer.PlayerGui.Animation.Enabled = false
+LocalPlayer.PlayerGui.Hostile.Hostile.Visible = false
+LocalPlayer.PlayerGui.Hostile.Status.Visible = false
+end
+end, yPosition)
+yPosition = yPosition + 55
+
+CreateButton("No Jump Limit", "Убрать лимит прыжков", function()
+if LocalPlayer.Character:FindFirstChild("JumpLimit") then
+LocalPlayer.Character.JumpLimit:Destroy()
+end
+end, yPosition)
+yPosition = yPosition + 55
+
+-- УЛУЧШЕННАЯ ФУНКЦИЯ FREE IMPORT GAMEPASS
+CreateButton("Free Import Gamepass", "Обход проверки игрового пропуска", function()
+-- Метод 1: Хук метаметодов (основной)
+local OldNamecall
+OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+local method = getnamecallmethod() or ""
+local args = {...}
+
+-- Перехватываем все возможные проверки gamepass
+if not checkcaller() and (
+method == "UserOwnsGamePassAsync" or
+method == "UserOwnsGamePass" or
+method == "GetPlayerGamePasses" or
+method == "PlayerHasGamePass" or
+string.find(tostring(self), "GamePass") or
+string.find(tostring(method), "GamePass")
+) then
+return true
+end
+
+return OldNamecall(self, ...)
+end)
+
+-- Метод 2: Хук индексатора как запасной вариант
+local OldIndex
+OldIndex = hookmetamethod(game, "__index", function(self, key)
+if not checkcaller() and (
+tostring(key) == "UserOwnsGamePassAsync" or
+tostring(key) == "UserOwnsGamePass" or
+tostring(key) == "PlayerHasGamePass" or
+string.find(tostring(key), "GamePass")
+) then
+return function() return true end
+end
+
+return OldIndex(self, key)
+end)
+
+-- Метод 3: Прямой хук сервиса GamePassService
+pcall(function()
+local GamePassService = game:GetService("GamePassService")
+if GamePassService then
+local OldGamePassFunction
+OldGamePassFunction = hookfunction(GamePassService.UserOwnsGamePassAsync, function(_, userId, gamePassId)
+if not checkcaller() and userId == LocalPlayer.UserId then
+return true
+end
+return OldGamePassFunction(userId, gamePassId)
+end)
+end
+end)
+
+-- Метод 4: Обход через MarketplaceService
+pcall(function()
+local MarketplaceService = game:GetService("MarketplaceService")
+if MarketplaceService then
+local OldMarketplaceFunction
+OldMarketplaceFunction = hookfunction(MarketplaceService.UserOwnsGamePassAsync, function(_, userId, gamePassId)
+if not checkcaller() and userId == LocalPlayer.UserId then
+return true
+end
+return OldMarketplaceFunction(userId, gamePassId)
+end)
+end
+end)
+
+-- Метод 5: Перехват сетевых событий связанных с gamepass
+pcall(function()
+for _, remote in pairs(game:GetDescendants()) do
+if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+if string.find(string.lower(remote.Name), "gamepass") or
+string.find(string.lower(remote.Name), "import") then
+if remote:IsA("RemoteEvent") then
+remote.OnServerEvent:Connect(function(player, ...)
+if player == LocalPlayer then
+-- Автоматически подтверждаем наличие gamepass
+return true
+end
+end)
+elseif remote:IsA("RemoteFunction") then
+local oldInvoke = remote.OnServerInvoke
+remote.OnServerInvoke = function(player, ...)
+if player == LocalPlayer then
+return true
+end
+return oldInvoke(player, ...)
+end
+end
+end
+end
+end
+end)
+
+-- Метод 6: Обновление LocalPlayer данных (если применимо)
+pcall(function()
+if LocalPlayer then
+-- Добавляем фейковые gamepasses в данные игрока
+local fakeGamePasses = Instance.new("Folder")
+fakeGamePasses.Name = "PlayerGamePasses"
+fakeGamePasses.Parent = LocalPlayer
+
+local importPass = Instance.new("BoolValue")
+importPass.Name = "ImportGamePass"
+importPass.Value = true
+importPass.Parent = fakeGamePasses
+end
+end)
+
+-- Метод 7: Перехват HTTP запросов к gamepass API
+pcall(function()
+local HttpService = game:GetService("HttpService")
+local oldJSONDecode = HttpService.JSONDecode
+HttpService.JSONDecode = function(self, json)
+local result = oldJSONDecode(self, json)
+-- Если в ответе есть информация о gamepass, изменяем её
+if type(result) == "table" and result.ownsGamePass ~= nil then
+result.ownsGamePass = true
+end
+return result
+end
+end)
+
+-- Проверка работы функции
+spawn(function()
+wait(2)
+pcall(function()
+-- Тестируем различные методы проверки gamepass
+local success1 = game:GetService("GamePassService"):UserOwnsGamePassAsync(LocalPlayer.UserId, 000000) -- любой ID
+local success2 = game:GetService("MarketplaceService"):UserOwnsGamePassAsync(LocalPlayer.UserId, 000000)
+
+print("🎮 Free Import Gamepass: ACTIVATED")
+print("📊 GamePassService check: " .. tostring(success1))
+print("📊 MarketplaceService check: " .. tostring(success2))
+
+if success1 or success2 then
+game:GetService("StarterGui"):SetCore("SendNotification", {
+Title = "WHY ME?!",
+Text = "Free Import Gamepass: ACTIVATED",
+Duration = 5
+})
+end
+end)
+end)
+end, yPosition)
+
+elseif CurrentTab == "Modding" then
+CreateButton("Taser", "Мод для тазера", function()
+LocalPlayer.Character.Taser.Activated:Connect(function()
+pcall(function()
+local mouse = LocalPlayer:GetMouse()
+local CFRAME = mouse.hit
+local Target = mouse.target
+local pos = Vector3.new(CFRAME.X, CFRAME.Y, CFRAME.Z)
+
+game:GetService("ReplicatedStorage"):WaitForChild("Tase"):FireServer("Hit", LocalPlayer.Character:FindFirstChild("Taser"), Target.Parent.Torso)
+game:GetService("ReplicatedStorage"):WaitForChild("Tase"):FireServer("Generate", LocalPlayer.Character.Taser, LocalPlayer.Character.Taser.Handle.Position, pos)
+game:GetService("ReplicatedStorage"):WaitForChild("Tase"):FireServer("Recharge", LocalPlayer.Character:FindFirstChild("Taser"))
+end)
+end)
+end, yPosition)
+end
+
+-- Обновляем размер контента
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, yPosition + 10)
+end
+
+-- Закрытие GUI
+CloseButton.MouseButton1Click:Connect(function()
+ScreenGui:Destroy()
+end)
+
+-- Настройка высоты падения
+workspace.FallenPartsDestroyHeight = -50000
+
+-- Инициализация
+TabButtons["Combat"].BackgroundColor3 = Color3.fromRGB(255, 0, 80)
+TabButtons["Combat"].TextColor3 = Color3.fromRGB(255, 255, 255)
+UpdateContent()
